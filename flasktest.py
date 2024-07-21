@@ -7,7 +7,7 @@ from dwave.system import EmbeddingComposite, DWaveSampler
 app = Flask(__name__)
 CORS(app)
 
-os.environ['DWAVE_API_TOKEN'] = 'DEV-e68c4298a3fab85f81c41ed68f40b6ac186a1989'
+os.environ['DWAVE_API_TOKEN'] = 'DEV-b2e6fb1835503db8a53dd43de578ceef0ac99570'
 
 # Define winning combinations once
 WINNING_COMBINATIONS = [
@@ -33,18 +33,26 @@ def create_qubo_for_single_move(board):
                 if board[j] == '':
                     quadratic[(i, j)] += penalty
 
-    for combo in WINNING_COMBINATIONS:
-        empty_cells = [i for i in combo if board[i] == '']
-        if len(empty_cells) == 1:
-            if board[empty_cells[0]] == 'O':
-                linear[empty_cells[0]] -= 6  # Increase the penalty reduction for completing a line with 'O'
-
     # Penalize 'X' completing a line
     for combo in WINNING_COMBINATIONS:
         empty_cells = [i for i in combo if board[i] == '']
         if len(empty_cells) == 1:
             if all(board[i] == 'X' for i in combo if i != empty_cells[0]):
-                linear[empty_cells[0]] -= 100  # Encourage penalty to block 'X'
+                linear[empty_cells[0]] -= 100  # High penalty to block 'X'
+
+    # Priority for 'O' to win if already 2 out of 3 in a winning position
+    for combo in WINNING_COMBINATIONS:
+        o_count = sum(1 for i in combo if board[i] == 'O')
+        empty_cells = [i for i in combo if board[i] == '']
+        if o_count == 2 and len(empty_cells) == 1:
+            linear[empty_cells[0]] -= 1000  # High priority for 'O' to win
+
+    # Encourage 'O' to complete lines, but lower than blocking 'X'
+    for combo in WINNING_COMBINATIONS:
+        empty_cells = [i for i in combo if board[i] == '']
+        if len(empty_cells) == 1:
+            if board[empty_cells[0]] == 'O':
+                linear[empty_cells[0]] -= 6  # Increase the penalty reduction for completing a line with 'O'
 
     return {'linear': linear, 'quadratic': quadratic}
 
